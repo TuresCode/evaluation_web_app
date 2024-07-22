@@ -1,0 +1,8 @@
+services:
+  streamlit-app:
+    build: .
+    ports:
+      - "7001:7001"
+    restart: unless-stopped
+    volumes:
+      - .:/app
