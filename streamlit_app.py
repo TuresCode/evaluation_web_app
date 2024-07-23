@@ -53,6 +53,9 @@ if 'selectivity_result' not in st.session_state:
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Classic analysis"
 
+if 'color_scheme' not in st.session_state:
+    st.session_state.color_scheme = "Blues"
+
 
 
 
@@ -111,21 +114,24 @@ def process_excel_file(file, product_column,separator='', substrate_column='',re
         data = new_data
         if references != '':
             st.info("References are used to calculate FIOP based on conversion.")
+            references = references.replace(' ', '')
             references = references.split(',')
             ref_data = df[df['A'].isin(references)]
             ref_data = ref_data[product_column]    
             ref_data = ref_data.fillna(0)
             ref_conversion = ref_data / (df[df['A'].isin(references)][substrate_column] + ref_data) * 100
             mean_reference = ref_conversion.mean()   
-            data = data / mean_reference * 100
-    if references != '':
+            data = data / mean_reference
+    elif references != '':
         st.info("References are used to calculate FIOP based on Area's.")
+        #lets remove spaces and split by comma
+        references = references.replace(' ', '')
         references = references.split(',')
         ref_data = df[df['A'].isin(references)]
         ref_data = ref_data[product_column]    
         ref_data = ref_data.fillna(0)
         mean_reference = ref_data.mean()   
-        data = data / mean_reference * 100
+        data = data / mean_reference
     return df, data
 
 def compare_columns(file, col1, col2):
@@ -159,7 +165,7 @@ def calculate_selectivity(file, col1, col2):
     return selectivity
 
 
-def create_heatmap(data, references, neg_control, other_ref, digits, scientific_notation):
+def create_heatmap(data, references, neg_control, other_ref, digits, scientific_notation, color_scheme="Blues"):
     fig, ax = plt.subplots(figsize=(14, 8))
     data = data.values.reshape(8, 12)
     data = pd.DataFrame(data, columns=range(1, 13), index=[chr(65+i) for i in range(0, 8)])
@@ -169,7 +175,7 @@ def create_heatmap(data, references, neg_control, other_ref, digits, scientific_
         digit_str = f".{digits}e"
     else:
         digit_str = f".{digits}f"
-    ax = sns.heatmap(data, annot=True, square=True, linewidths=0.5, fmt=digit_str, cmap="Blues", ax=ax, cbar_kws={'shrink': .8})
+    ax = sns.heatmap(data, annot=True, square=True, linewidths=0.5, fmt=digit_str, cmap=color_scheme, ax=ax, cbar_kws={'shrink': .8})
     
     # Function to add rectangles
     def add_rectangle(well, color):
@@ -194,7 +200,6 @@ def create_heatmap(data, references, neg_control, other_ref, digits, scientific_
     ax.set_ylim(bottom + 0.1, top - 0.4)
     ax.set_xlabel("Column", labelpad=10)
     ax.set_ylabel("Row", labelpad=10)
-    # Make the plot responsive
     
     return fig,data
 
@@ -208,6 +213,13 @@ st.set_page_config(
 # Sidebar
 st.sidebar.title("96-Well Plate  Analyzer")
 uploaded_file = st.sidebar.file_uploader("Select excel file", type="xlsx")
+color_scheme = st.sidebar.selectbox(
+    "Select color scheme for heatmap",
+    options=["Blues", "Reds", "Greens", "Purples"],
+    index=["Blues", "Reds", "Greens", "Purples"].index(st.session_state.color_scheme),
+    key="color_scheme",
+    help="Choose the color scheme for the heatmap"
+)
 example = pd.read_excel('20240101_example.xlsx')
 output = io.BytesIO()
 example.to_excel(output, index=False)
@@ -221,7 +233,6 @@ st.sidebar.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 use_conversion = st.sidebar.checkbox("Use conversion", value=st.session_state.use_conversion, help="If checked, conversion will be used to calculate FIOP rather than areas of the product")
-
 analysis_visibility = False
 
 # Main content
@@ -249,16 +260,16 @@ if not st.session_state.analysis_visibility:
 tab1, tab2 = st.tabs(["Classic analysis", "Advanced analysis"])
 
 with tab1:
-    st.info("First column of the excel file (column A) is used as index. A1, A2, A3, ... H12. Select the product column eg. M and assign references and negative control if available.")
+    st.info("First column of the excel file (column A) is used as index. A1, A2, A3, ... H12. Select the product column eg. M and assign references and negative control if available. Area are used for plotting. If conversion should be used, select the substrate column and check the conversion box.")
     col1, col2 = st.columns(2)
     
     with col1:
         product_column = st.text_input("Product Column [MANDATORY]", value=st.session_state.product_column, help="Choose the column that contains the product data. This is mandatory.")
-        references = st.text_input("Assign references", value=st.session_state.references, help="If no reference are chosen, area will be used for plotting. Assign references by typing in well location, separate by using commas (,).")
+        references = st.text_input("Assign positive control", value=st.session_state.references, help="If no reference are chosen, area will be used for plotting. Assign references by typing in well location, separate by using commas (,).")
         neg_control = st.text_input("Assign negative control", value=st.session_state.neg_control, help="Negative controls are only used for plotting. Assign references by typing in well location, separate by using commas (,).")
         digits = st.number_input("Digits", value=st.session_state.digits, help="Number of digits to round the values to.", min_value=0, max_value=4)
     with col2:
-        substrate_column = st.text_input("Substrate Column", value=st.session_state.substrate_column, help="It's possible to perform analysis without choosing substrate column but if you want to use conversion, choose the substrate column and click the checkbox. Use conversion")
+        substrate_column = st.text_input("Substrate Column - Only for conversion", value=st.session_state.substrate_column, help="It's possible to perform analysis without choosing substrate column but if you want to use conversion, choose the substrate column and click the checkbox. Use conversion")
         separator = st.text_input("Separator in sample name", value=st.session_state.separator, help="If samples are labeled according to A1,A2,etc no entry is needed. If they contain a Separator like ML001-A1, enter only the separator -")
         other_ref = st.text_input("Other references", value=st.session_state.other_ref, help="If you have other references you want to assign, type in well location, separate by using commas (,).")
         scientific_notation = st.checkbox("Scientific notation", value=True, help="If checked, the values will be displayed in scientific notation.")
@@ -272,8 +283,9 @@ with tab1:
                 df, data = process_excel_file(uploaded_file, product_column, separator, substrate_column, references,use_conversion)
 
 
+
                 # Create the heatmap
-                fig, results = create_heatmap(data, references, neg_control, other_ref, digits, scientific_notation)
+                fig, results = create_heatmap(data, references, neg_control, other_ref, digits, scientific_notation, st.session_state.color_scheme)
 
                 #change session_states
                 st.session_state.product_column = product_column
@@ -356,7 +368,7 @@ with tab2:
             heatmap_data = st.session_state.comparison_result['Ratio']
 
             # Create the heatmap using the create_heatmap function
-            fig, _ = create_heatmap(heatmap_data, references, neg_control, other_ref, digits, scientific_notation)
+            fig, _ = create_heatmap(heatmap_data, references, neg_control, other_ref, digits, scientific_notation, st.session_state.color_scheme)
 
             # Display the heatmap
             col1p, col2p, col3p = st.columns([1,3,1])
