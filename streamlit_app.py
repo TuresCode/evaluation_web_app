@@ -28,7 +28,7 @@ if 'other_ref' not in st.session_state:
 if 'digits' not in st.session_state:
     st.session_state.digits = 2
 if 'scientific_notation' not in st.session_state:
-    st.session_state.scientific_notation = True
+    st.session_state.scientific_notation = False
 
 if 'compare_1' not in st.session_state:
     st.session_state.compare_1 = ""
@@ -272,7 +272,7 @@ with tab1:
         substrate_column = st.text_input("Substrate Column - Only for conversion", value=st.session_state.substrate_column, help="It's possible to perform analysis without choosing substrate column but if you want to use conversion, choose the substrate column and click the checkbox. Use conversion")
         separator = st.text_input("Separator in sample name", value=st.session_state.separator, help="If samples are labeled according to A1,A2,etc no entry is needed. If they contain a Separator like ML001-A1, enter only the separator -")
         other_ref = st.text_input("Other references", value=st.session_state.other_ref, help="If you have other references you want to assign, type in well location, separate by using commas (,).")
-        scientific_notation = st.checkbox("Scientific notation", value=True, help="If checked, the values will be displayed in scientific notation.")
+        scientific_notation = st.checkbox("Scientific notation", value=False, help="If checked, the values will be displayed in scientific notation.")
 
     
     # Submit button and processing
