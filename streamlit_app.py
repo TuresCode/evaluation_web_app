@@ -68,7 +68,11 @@ def create_zip_file(files):
 
 def read_excel(file):
     # Read the Excel file
-    df = pd.read_excel(file)
+    try:
+        df = pd.read_excel(file)
+    except:
+        print('extraction failed')
+        st.error('Extraction of excel file failed, remove merged cells')
     #add new row at the top with df.columns
     new_row = pd.DataFrame([df.columns], columns=df.columns)
     df = pd.concat([new_row, df], ignore_index=True)
